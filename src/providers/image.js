@@ -54,6 +54,36 @@ const openai = {
   },
 };
 
+const FREE_DIMS = { square: [1024, 1024], landscape: [1280, 720], portrait: [720, 1280] };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Free, no key. Uses Pollinations' public image endpoint. Anonymous use is rate limited
+ * (about one image per 15 seconds) and may carry a watermark. Prompts are sent to a public service.
+ */
+const pollinations = {
+  async generate({ prompt, shape, outBase }) {
+    const base = (process.env.POLLINATIONS_API_BASE || "https://image.pollinations.ai").replace(/\/$/, "");
+    const [w, h] = FREE_DIMS[shape];
+    const q = new URLSearchParams({ width: w, height: h, nologo: "true", model: process.env.MUSE_IMAGE_MODEL || "flux" });
+    const url = `${base}/prompt/${encodeURIComponent(prompt.slice(0, 800))}?${q}`;
+    const retryMs = Number(process.env.POLLINATIONS_RETRY_MS) || 16000;
+    let res;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      res = await fetch(url);
+      if (res.ok || (res.status !== 429 && res.status < 500)) break;
+      if (attempt < 4) await wait(retryMs);
+    }
+    if (!res.ok) throw new Error(`Pollinations error ${res.status}. The free service may be busy; try again in a minute`);
+    const type = res.headers.get("content-type") || "";
+    if (!type.startsWith("image/")) throw new Error(`Pollinations returned ${type || "no content type"} instead of an image`);
+    const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
+    const file = `${outBase}.${ext}`;
+    await writeFile(file, Buffer.from(await res.arrayBuffer()));
+    return { file, provider: "pollinations" };
+  },
+};
+
 const ASPECT = { square: "1:1", landscape: "3:2", portrait: "2:3" };
 
 /** Replicate image models. Set MUSE_IMAGE_MODEL to owner/name of the image model you want. */
@@ -71,5 +101,5 @@ const replicate = {
   },
 };
 
-export const imageProviders = { mock, openai, replicate };
+export const imageProviders = { mock, openai, replicate, pollinations };
 export const IMAGE_SHAPES = Object.keys(SIZES);

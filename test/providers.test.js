@@ -13,7 +13,7 @@ const seen = {};
 let server, base, mp4;
 let polls = 0;
 
-const KEYS = ["MUSE_IMAGE_PROVIDER", "MUSE_VIDEO_PROVIDER", "OPENAI_API_KEY", "OPENAI_API_BASE", "REPLICATE_API_TOKEN", "REPLICATE_API_BASE",
+const KEYS = ["POLLINATIONS_API_BASE", "POLLINATIONS_RETRY_MS", "MUSE_IMAGE_PROVIDER", "MUSE_VIDEO_PROVIDER", "OPENAI_API_KEY", "OPENAI_API_BASE", "REPLICATE_API_TOKEN", "REPLICATE_API_BASE",
   "REPLICATE_POLL_MS", "MUSE_IMAGE_MODEL", "MUSE_VIDEO_MODEL", "MUSE_VIDEO_DURATIONS", "MUSE_VIDEO_EXTRA_INPUT", "MUSE_IMAGE_EXTRA_INPUT"];
 const saved = {};
 const reset = () => KEYS.forEach((k) => delete process.env[k]);
@@ -46,6 +46,13 @@ before(async () => {
       }
       if (req.method === "POST" && req.url === "/v1/models/acme/bad/predictions") return json(422, { detail: "duration must be one of 4, 6, 8" });
       if (req.method === "POST" && req.url === "/v1/models/acme/fail/predictions") return json(201, { status: "failed", error: "NSFW flagged", urls: { get: `${base}/x` } });
+      if (req.method === "GET" && req.url.startsWith("/prompt/")) {
+        seen.poll = (seen.poll || 0) + 1;
+        seen.pollUrl = req.url;
+        if (seen.poll === 1) { res.writeHead(429); return res.end("slow down"); }
+        res.writeHead(200, { "content-type": "image/jpeg" });
+        return res.end(Buffer.from(PNG, "base64"));
+      }
       if (req.url === "/pred/1") {
         polls++;
         return json(200, polls < 2 ? { status: "processing", urls: { get: `${base}/pred/1` } } : { status: "succeeded", output: `${base}/out.mp4`, urls: { get: `${base}/pred/1` } });
@@ -154,4 +161,21 @@ test("check_setup lists exactly what is missing and never leaks keys", async () 
   assert.deepEqual(r.video.missing, ["MUSE_VIDEO_MODEL"]);
   assert.ok(r.warnings.some((w) => w.includes("MUSE_VIDEO_MODEL")));
   assert.ok(!JSON.stringify(r).includes("r8_supersecret"));
+});
+
+test("pollinations (free) retries when rate limited, sends the prompt in the URL, saves the image", async () => {
+  reset();
+  seen.poll = 0;
+  const ctx = await mk();
+  Object.assign(process.env, { MUSE_IMAGE_PROVIDER: "pollinations", POLLINATIONS_API_BASE: base, POLLINATIONS_RETRY_MS: "20" });
+  const r = await callTool("generate_image", { prompt: "a red fox & a moon?", shape: "portrait", filename: "free" }, ctx);
+  assert.equal(r.provider, "pollinations");
+  assert.ok(r.path.endsWith("free.jpg"));
+  assert.equal(seen.poll, 2, "should retry once after the 429");
+  assert.ok(seen.pollUrl.includes(encodeURIComponent("a red fox & a moon?")));
+  assert.ok(seen.pollUrl.includes("width=720") && seen.pollUrl.includes("height=1280"));
+  assert.ok((await readFile(path.join(ctx.workDir, r.path))).length > 10);
+  // auto mode must never silently use the free public service
+  process.env.MUSE_IMAGE_PROVIDER = "auto";
+  assert.equal((await callTool("generate_image", { prompt: "x" }, ctx)).provider, "mock");
 });

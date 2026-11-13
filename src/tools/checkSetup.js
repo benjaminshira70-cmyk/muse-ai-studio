@@ -20,7 +20,7 @@ async function ffmpegInfo() {
 }
 
 const NEEDS = {
-  image: { mock: [], openai: ["OPENAI_API_KEY"], replicate: ["REPLICATE_API_TOKEN", "MUSE_IMAGE_MODEL"] },
+  image: { mock: [], pollinations: [], openai: ["OPENAI_API_KEY"], replicate: ["REPLICATE_API_TOKEN", "MUSE_IMAGE_MODEL"] },
   video: { mock: [], replicate: ["REPLICATE_API_TOKEN", "MUSE_VIDEO_MODEL"] },
 };
 
@@ -58,7 +58,7 @@ export default {
     if (ff.drawtext && !font) warnings.push("No font file found: set MUSE_FONT to a .ttf/.otf path for text overlays.");
     const image = providerStatus("image", imageProviders);
     const video = providerStatus("video", videoProviders);
-    if (!image.real) warnings.push("Image generation is using the offline mock (placeholder images). Add OPENAI_API_KEY, or REPLICATE_API_TOKEN + MUSE_IMAGE_MODEL.");
+    if (!image.real) warnings.push("Image generation is using the offline mock (placeholder images). For free real images set MUSE_IMAGE_PROVIDER=pollinations; paid options: OPENAI_API_KEY, or REPLICATE_API_TOKEN + MUSE_IMAGE_MODEL.");
     if (image.missing?.length) warnings.push(`Image provider ${image.provider} is missing: ${image.missing.join(", ")}`);
     if (video.missing?.length) warnings.push(`Video provider ${video.provider} is missing: ${video.missing.join(", ")}`);
     if (!video.real) warnings.push("Video generation is using the offline mock (test clips). Add REPLICATE_API_TOKEN + MUSE_VIDEO_MODEL.");

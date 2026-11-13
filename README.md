@@ -45,11 +45,15 @@ Files go to `MUSE_WORKSPACE` (default `~/muse-workspace`). The machine running t
 
 ## Turn on real image and video generation
 
-By default both use offline `mock` placeholders. Recommended setup: OpenAI for images, Replicate for video.
+By default both use offline `mock` placeholders.
+
+**Free option (images only):** set `MUSE_IMAGE_PROVIDER=pollinations`. No key and no cost, but it is rate limited (about one image per 15 seconds), may add a watermark, is meant for light use, and your prompts go to a public service. It is never picked by `auto`. There is no free video generation, but all video *editing* is free.
+
+**Paid setup:** OpenAI for images, Replicate for video.
 
 | Setting | What it does |
 |---|---|
-| `MUSE_IMAGE_PROVIDER` / `MUSE_VIDEO_PROVIDER` | `mock`, `openai` (image only), `replicate`, or **`auto`** (use whichever you have keys for, else mock) |
+| `MUSE_IMAGE_PROVIDER` / `MUSE_VIDEO_PROVIDER` | `mock`, `pollinations` (free, image only), `openai` (image only), `replicate`, or **`auto`** (use whichever you have keys for, else mock) |
 | `OPENAI_API_KEY` | Real images via OpenAI (model `gpt-image-1`, override with `MUSE_IMAGE_MODEL`) |
 | `REPLICATE_API_TOKEN` | One token for Replicate images and videos |
 | `MUSE_VIDEO_MODEL` | Replicate video model as `owner/name` (required for video) |
@@ -77,7 +81,7 @@ Add your own tool with `registerTool({ name, description, input_schema, handler 
 
 ```bash
 cp .env.example .env
-npm test                # 24 tests, run offline
+npm test                # 25 tests, run offline
 node src/cli.js list    # print tool definitions
 node src/cli.js call generate_image '{"prompt":"a red fox"}'
 ```
