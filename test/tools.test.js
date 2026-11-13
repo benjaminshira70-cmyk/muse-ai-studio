@@ -218,3 +218,12 @@ test("website: only images/videos are copied, bad email rejected, name clashes h
   const r = await callTool("build_website", { site_name: "clash", title: "x", sections: [{ type: "gallery", images: [{ src: "d1/pic.svg", alt: "1" }, { src: "d2/pic.svg", alt: "2" }] }] }, ctx);
   assert.deepEqual(r.assets.sort(), ["pic-2.svg", "pic.svg"]);
 });
+
+test("website: text on the accent colour stays readable (dark text on yellow, white on purple)", async () => {
+  const ctx = await mk();
+  const sec = [{ type: "cta", headline: "C", text: "t", button: { label: "b", url: "#" } }];
+  const yellow = await callTool("build_website", { site_name: "y", title: "t", accent: "#eab308", sections: sec }, ctx);
+  const purple = await callTool("build_website", { site_name: "p", title: "t", accent: "#6d28d9", sections: sec }, ctx);
+  assert.match(await readFile(path.join(ctx.workDir, yellow.path), "utf8"), /--on:#111827/);
+  assert.match(await readFile(path.join(ctx.workDir, purple.path), "utf8"), /--on:#ffffff/);
+});

@@ -71,7 +71,7 @@ Add your own tool with `registerTool({ name, description, input_schema, handler 
 
 ```bash
 cp .env.example .env
-npm test                # 16 tests, run offline
+npm test                # 17 tests, run offline
 node src/cli.js list    # print tool definitions
 node src/cli.js call generate_image '{"prompt":"a red fox"}'
 ```
