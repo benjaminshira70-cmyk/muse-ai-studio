@@ -30,11 +30,11 @@ npx -y github:benjaminshira70-cmyk/muse-ai-studio
       "args": ["-y", "github:benjaminshira70-cmyk/muse-ai-studio"],
       "env": {
         "MUSE_WORKSPACE": "/path/to/workspace",
-        "MUSE_IMAGE_PROVIDER": "replicate",
-        "MUSE_IMAGE_MODEL": "owner/image-model",
-        "MUSE_VIDEO_PROVIDER": "replicate",
-        "MUSE_VIDEO_MODEL": "owner/video-model",
-        "REPLICATE_API_TOKEN": "..."
+        "MUSE_IMAGE_PROVIDER": "auto",
+        "MUSE_VIDEO_PROVIDER": "auto",
+        "OPENAI_API_KEY": "...",
+        "REPLICATE_API_TOKEN": "...",
+        "MUSE_VIDEO_MODEL": "owner/video-model"
       }
     }
   }
@@ -45,15 +45,21 @@ Files go to `MUSE_WORKSPACE` (default `~/muse-workspace`). The machine running t
 
 ## Turn on real image and video generation
 
-By default both use offline `mock` placeholders. To switch:
+By default both use offline `mock` placeholders. Recommended setup: OpenAI for images, Replicate for video.
 
-| You want | Set these |
+| Setting | What it does |
 |---|---|
-| Real images via OpenAI | `MUSE_IMAGE_PROVIDER=openai`, `OPENAI_API_KEY` (model defaults to `gpt-image-1`, override with `MUSE_IMAGE_MODEL`) |
-| Real images via Replicate | `MUSE_IMAGE_PROVIDER=replicate`, `REPLICATE_API_TOKEN`, `MUSE_IMAGE_MODEL=owner/name` |
-| Real videos via Replicate | `MUSE_VIDEO_PROVIDER=replicate`, `REPLICATE_API_TOKEN`, `MUSE_VIDEO_MODEL=owner/name` |
+| `MUSE_IMAGE_PROVIDER` / `MUSE_VIDEO_PROVIDER` | `mock`, `openai` (image only), `replicate`, or **`auto`** (use whichever you have keys for, else mock) |
+| `OPENAI_API_KEY` | Real images via OpenAI (model `gpt-image-1`, override with `MUSE_IMAGE_MODEL`) |
+| `REPLICATE_API_TOKEN` | One token for Replicate images and videos |
+| `MUSE_VIDEO_MODEL` | Replicate video model as `owner/name` (required for video) |
+| `MUSE_IMAGE_MODEL` | Replicate image model as `owner/name` (only if images use Replicate) |
+| `MUSE_VIDEO_DURATIONS` | Lengths the model accepts, e.g. `4,6,8`. Requested seconds snap to the nearest |
+| `MUSE_VIDEO_EXTRA_INPUT` / `MUSE_IMAGE_EXTRA_INPUT` | JSON of extra model options, e.g. `{"resolution":"720p","generate_audio":false}` |
 
-Keep keys out of chat history and out of git: enter them through your platform's secret/credential prompt, or in a local `.env` (already git-ignored). Then call `check_setup` to confirm nothing is missing.
+Video models differ in which options they accept. The adapter always sends `prompt`, `duration`, `aspect_ratio` (and `image` when you give one); check your model's API page on Replicate for the rest and add them with `MUSE_VIDEO_EXTRA_INPUT`. If a request is rejected, the error from Replicate is shown as-is.
+
+Keep keys out of chat history and out of git: enter them through your platform's secret/credential prompt, or in a local `.env` (already git-ignored). Then call `check_setup` to confirm nothing is missing. Both providers charge per generation, so set a spend limit in each dashboard.
 
 ## Use it in code
 
@@ -71,7 +77,7 @@ Add your own tool with `registerTool({ name, description, input_schema, handler 
 
 ```bash
 cp .env.example .env
-npm test                # 17 tests, run offline
+npm test                # 24 tests, run offline
 node src/cli.js list    # print tool definitions
 node src/cli.js call generate_image '{"prompt":"a red fox"}'
 ```
@@ -81,4 +87,5 @@ Text overlays need an ffmpeg with the `drawtext` filter and a font file. A font 
 ## Status
 
 - Tested offline: registry, MCP protocol, path safety, website builder (all themes and sections), all video edits, mock providers.
-- **Not tested against live APIs:** the `openai` and `replicate` adapters need your API keys. Generate one image and one short video with real keys and check the results.
+- Provider adapters are tested against local fake OpenAI/Replicate servers (request shape, polling, duration snapping, error handling).
+- **Not yet run against the live APIs.** Generate one image and one short video with real keys and check the results.

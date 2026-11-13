@@ -1,5 +1,6 @@
 import path from "node:path";
 import { videoProviders, VIDEO_ASPECTS } from "../providers/video.js";
+import { pickProvider } from "../providers/select.js";
 import { ensureDir, resolveInside, probe } from "../util.js";
 
 export default {
@@ -22,9 +23,7 @@ export default {
     const name = (filename || `video-${Date.now()}`).replace(/[^\w.-]/g, "_");
     const dir = resolveInside(ctx, "videos");
     await ensureDir(dir);
-    const providerName = process.env.MUSE_VIDEO_PROVIDER || "mock";
-    const provider = videoProviders[providerName];
-    if (!provider) throw new Error(`Unknown video provider: ${providerName}`);
+    const { provider } = pickProvider("video", videoProviders);
     const out = await provider.generate({
       prompt, aspect, seconds, imageUrl: image_url, outBase: path.join(dir, name),
     });

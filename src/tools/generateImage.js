@@ -1,5 +1,6 @@
 import path from "node:path";
 import { imageProviders, IMAGE_SHAPES } from "../providers/image.js";
+import { pickProvider } from "../providers/select.js";
 import { ensureDir, resolveInside } from "../util.js";
 
 export default {
@@ -19,9 +20,7 @@ export default {
     const name = (filename || `image-${Date.now()}`).replace(/[^\w.-]/g, "_");
     const dir = resolveInside(ctx, "images");
     await ensureDir(dir);
-    const providerName = process.env.MUSE_IMAGE_PROVIDER || "mock";
-    const provider = imageProviders[providerName];
-    if (!provider) throw new Error(`Unknown image provider: ${providerName}`);
+    const { provider } = pickProvider("image", imageProviders);
     const out = await provider.generate({ prompt, shape, outBase: path.join(dir, name) });
     return { path: path.relative(resolveInside(ctx, "."), out.file), provider: out.provider, shape };
   },

@@ -1,15 +1,16 @@
+const base = () => (process.env.REPLICATE_API_BASE || "https://api.replicate.com").replace(/\/$/, "");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Run a Replicate model and return the first output URL.
  * model is "owner/name". Input field names differ per model, so callers pass what the model expects.
  */
-export async function replicateRun({ model, input, timeoutMs = 15 * 60 * 1000 }) {
+export async function replicateRun({ model, modelVar = "model", input, timeoutMs = 15 * 60 * 1000 }) {
   const token = process.env.REPLICATE_API_TOKEN;
   if (!token) throw new Error("REPLICATE_API_TOKEN is not set");
-  if (!model) throw new Error("Replicate model is not set (use owner/name)");
+  if (!model) throw new Error(`${modelVar} is not set. Set it to the Replicate model as owner/name`);
   const headers = { "content-type": "application/json", authorization: `Bearer ${token}` };
-  let res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
+  let res = await fetch(`${base()}/v1/models/${model}/predictions`, {
     method: "POST", headers, body: JSON.stringify({ input }),
   });
   let pred = await res.json().catch(() => ({}));
@@ -17,7 +18,7 @@ export async function replicateRun({ model, input, timeoutMs = 15 * 60 * 1000 })
   const deadline = Date.now() + timeoutMs;
   while (!["succeeded", "failed", "canceled"].includes(pred.status)) {
     if (Date.now() > deadline) throw new Error("Generation timed out");
-    await sleep(3000);
+    await sleep(Number(process.env.REPLICATE_POLL_MS) || 3000);
     res = await fetch(pred.urls.get, { headers });
     pred = await res.json();
   }

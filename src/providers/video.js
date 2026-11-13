@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { run } from "../util.js";
 import { replicateRun, download } from "./replicate.js";
+import { extraInput, snapDuration } from "./select.js";
 
 const ASPECTS = { "16:9": [1280, 720], "9:16": [720, 1280], "1:1": [720, 720] };
 
@@ -23,9 +24,9 @@ const mock = {
  */
 const replicate = {
   async generate({ prompt, aspect, seconds, outBase, imageUrl }) {
-    const input = { prompt, duration: seconds, aspect_ratio: aspect };
+    const input = { prompt, duration: snapDuration(seconds), aspect_ratio: aspect, ...extraInput("MUSE_VIDEO_EXTRA_INPUT") };
     if (imageUrl) input.image = imageUrl;
-    const url = await replicateRun({ model: process.env.MUSE_VIDEO_MODEL, input });
+    const url = await replicateRun({ model: process.env.MUSE_VIDEO_MODEL, modelVar: "MUSE_VIDEO_MODEL", input });
     const file = `${outBase}.mp4`;
     await writeFile(file, await download(url));
     return { file, provider: "replicate" };

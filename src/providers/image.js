@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { replicateRun, download } from "./replicate.js";
+import { extraInput } from "./select.js";
 
 const SIZES = { square: "1024x1024", landscape: "1536x1024", portrait: "1024x1536" };
 
@@ -30,7 +31,7 @@ const openai = {
   async generate({ prompt, shape, outBase }) {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OPENAI_API_KEY is not set");
-    const res = await fetch("https://api.openai.com/v1/images/generations", {
+    const res = await fetch(`${(process.env.OPENAI_API_BASE || "https://api.openai.com").replace(/\/$/, "")}/v1/images/generations`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
       body: JSON.stringify({
@@ -60,7 +61,8 @@ const replicate = {
   async generate({ prompt, shape, outBase }) {
     const url = await replicateRun({
       model: process.env.MUSE_IMAGE_MODEL,
-      input: { prompt, aspect_ratio: ASPECT[shape] },
+      modelVar: "MUSE_IMAGE_MODEL",
+      input: { prompt, aspect_ratio: ASPECT[shape], ...extraInput("MUSE_IMAGE_EXTRA_INPUT") },
     });
     const ext = (new URL(url).pathname.match(/\.(png|jpe?g|webp)$/i)?.[1] || "png").toLowerCase();
     const file = `${outBase}.${ext}`;

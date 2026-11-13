@@ -3,6 +3,7 @@ import { run, workspaceDir } from "../util.js";
 import { imageProviders } from "../providers/image.js";
 import { videoProviders } from "../providers/video.js";
 import { findFont } from "./fonts.js";
+import { pickProvider } from "../providers/select.js";
 
 async function ffmpegInfo() {
   try {
@@ -24,15 +25,22 @@ const NEEDS = {
 };
 
 function providerStatus(kind, registry) {
-  const name = process.env[kind === "image" ? "MUSE_IMAGE_PROVIDER" : "MUSE_VIDEO_PROVIDER"] || "mock";
-  if (!registry[name]) return { provider: name, ready: false, problem: `Unknown provider "${name}"`, options: Object.keys(registry) };
-  const missing = (NEEDS[kind][name] || []).filter((k) => !process.env[k]);
+  const requested = process.env[kind === "image" ? "MUSE_IMAGE_PROVIDER" : "MUSE_VIDEO_PROVIDER"] || "mock";
+  let picked;
+  try {
+    picked = pickProvider(kind, registry);
+  } catch (e) {
+    return { provider: requested, ready: false, problem: e.message, options: ["auto", ...Object.keys(registry)] };
+  }
+  const missing = (NEEDS[kind][picked.name] || []).filter((k) => !process.env[k]);
   return {
-    provider: name,
+    provider: picked.name,
+    requested,
     ready: missing.length === 0,
-    real: name !== "mock",
+    real: picked.name !== "mock",
     missing,
-    options: Object.keys(registry),
+    options: ["auto", ...Object.keys(registry)],
+    hint: requested !== "auto" && picked.name === "mock" ? 'Set MUSE_*_PROVIDER to "auto" to use real providers as soon as keys are present' : undefined,
   };
 }
 
@@ -50,8 +58,10 @@ export default {
     if (ff.drawtext && !font) warnings.push("No font file found: set MUSE_FONT to a .ttf/.otf path for text overlays.");
     const image = providerStatus("image", imageProviders);
     const video = providerStatus("video", videoProviders);
-    if (!image.real) warnings.push("Image generation is using the offline mock (placeholder images).");
-    if (!video.real) warnings.push("Video generation is using the offline mock (test clips).");
+    if (!image.real) warnings.push("Image generation is using the offline mock (placeholder images). Add OPENAI_API_KEY, or REPLICATE_API_TOKEN + MUSE_IMAGE_MODEL.");
+    if (image.missing?.length) warnings.push(`Image provider ${image.provider} is missing: ${image.missing.join(", ")}`);
+    if (video.missing?.length) warnings.push(`Video provider ${video.provider} is missing: ${video.missing.join(", ")}`);
+    if (!video.real) warnings.push("Video generation is using the offline mock (test clips). Add REPLICATE_API_TOKEN + MUSE_VIDEO_MODEL.");
     return {
       node: process.version,
       workspace: workspaceDir(ctx),
