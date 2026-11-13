@@ -1,0 +1,14 @@
+{
+  "name": "muse-ai-studio",
+  "version": "0.1.0",
+  "description": "Tool pack for Muse AI: build websites, generate images and videos, edit videos.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": { "muse-tools": "src/cli.js" },
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test",
+    "tools": "node src/cli.js list"
+  },
+  "license": "MIT"
+}
