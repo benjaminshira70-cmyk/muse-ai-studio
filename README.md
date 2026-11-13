@@ -30,11 +30,39 @@ const result = await callToolSafe(toolName, toolInput, { workDir: "./workspace" 
 
 Add your own tool with `registerTool({ name, description, input_schema, handler })`.
 
+## Use it as an MCP server (Muse, Claude, any MCP client)
+
+The package ships a standard MCP server over stdio, with no dependencies:
+
+```bash
+npx -y github:benjaminshira70-cmyk/muse-ai-studio
+```
+
+MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "muse-ai-studio": {
+      "command": "npx",
+      "args": ["-y", "github:benjaminshira70-cmyk/muse-ai-studio"],
+      "env": {
+        "MUSE_WORKSPACE": "/path/to/workspace",
+        "MUSE_IMAGE_PROVIDER": "openai",
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+Files are written to `MUSE_WORKSPACE` (default `~/muse-workspace`). The machine running the server needs `ffmpeg` for the video tools.
+
 ## Setup
 
 ```bash
 cp .env.example .env   # then fill in keys for the real providers
-npm test               # 9 tests, runs offline
+npm test               # 10 tests, runs offline
 node src/cli.js list   # print tool definitions
 node src/cli.js call generate_image '{"prompt":"a red fox"}'
 ```
