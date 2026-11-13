@@ -13,7 +13,7 @@ const seen = {};
 let server, base, mp4;
 let polls = 0;
 
-const KEYS = ["POLLINATIONS_API_BASE", "POLLINATIONS_RETRY_MS", "MUSE_IMAGE_PROVIDER", "MUSE_VIDEO_PROVIDER", "OPENAI_API_KEY", "OPENAI_API_BASE", "REPLICATE_API_TOKEN", "REPLICATE_API_BASE",
+const KEYS = ["POLLINATIONS_API_KEY", "POLLINATIONS_KEYED_BASE", "POLLINATIONS_API_BASE", "POLLINATIONS_RETRY_MS", "MUSE_IMAGE_PROVIDER", "MUSE_VIDEO_PROVIDER", "OPENAI_API_KEY", "OPENAI_API_BASE", "REPLICATE_API_TOKEN", "REPLICATE_API_BASE",
   "REPLICATE_POLL_MS", "MUSE_IMAGE_MODEL", "MUSE_VIDEO_MODEL", "MUSE_VIDEO_DURATIONS", "MUSE_VIDEO_EXTRA_INPUT", "MUSE_IMAGE_EXTRA_INPUT"];
 const saved = {};
 const reset = () => KEYS.forEach((k) => delete process.env[k]);
@@ -51,6 +51,12 @@ before(async () => {
         seen.pollUrl = req.url;
         if (seen.poll === 1) { res.writeHead(429); return res.end("slow down"); }
         res.writeHead(200, { "content-type": "image/jpeg" });
+        return res.end(Buffer.from(PNG, "base64"));
+      }
+      if (req.method === "GET" && req.url.startsWith("/image/")) {
+        seen.keyed = { url: req.url, auth: req.headers.authorization };
+        if (req.headers.authorization !== "Bearer sk_good") { res.writeHead(401); return res.end("no"); }
+        res.writeHead(200, { "content-type": "image/png" });
         return res.end(Buffer.from(PNG, "base64"));
       }
       if (req.url === "/pred/1") {
@@ -178,4 +184,18 @@ test("pollinations (free) retries when rate limited, sends the prompt in the URL
   // auto mode must never silently use the free public service
   process.env.MUSE_IMAGE_PROVIDER = "auto";
   assert.equal((await callTool("generate_image", { prompt: "x" }, ctx)).provider, "mock");
+});
+
+test("pollinations with a key uses the keyed endpoint with a Bearer header; bad key gives a clear error", async () => {
+  reset();
+  const ctx = await mk();
+  Object.assign(process.env, { MUSE_IMAGE_PROVIDER: "pollinations", POLLINATIONS_KEYED_BASE: base, POLLINATIONS_API_KEY: "sk_good" });
+  const r = await callTool("generate_image", { prompt: "a fox", filename: "keyed" }, ctx);
+  assert.ok(r.path.endsWith("keyed.png"));
+  assert.equal(seen.keyed.auth, "Bearer sk_good");
+  assert.ok(seen.keyed.url.startsWith("/image/a%20fox?"));
+  process.env.POLLINATIONS_API_KEY = "sk_bad";
+  const bad = await callToolSafe("generate_image", { prompt: "a fox" }, ctx);
+  assert.match(bad.error, /rejected.*POLLINATIONS_API_KEY/);
+  assert.ok(!bad.error.includes("sk_bad"));
 });

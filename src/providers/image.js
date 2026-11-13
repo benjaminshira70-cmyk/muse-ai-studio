@@ -63,17 +63,31 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
  */
 const pollinations = {
   async generate({ prompt, shape, outBase }) {
-    const base = (process.env.POLLINATIONS_API_BASE || "https://image.pollinations.ai").replace(/\/$/, "");
+    const key = process.env.POLLINATIONS_API_KEY;
     const [w, h] = FREE_DIMS[shape];
-    const q = new URLSearchParams({ width: w, height: h, nologo: "true", model: process.env.MUSE_IMAGE_MODEL || "flux" });
-    const url = `${base}/prompt/${encodeURIComponent(prompt.slice(0, 800))}?${q}`;
+    const q = new URLSearchParams({ width: w, height: h });
+    let url;
+    const headers = {};
+    if (key) {
+      // Official keyed API (key from enter.pollinations.ai). Model is optional; the service has its own default.
+      const base = (process.env.POLLINATIONS_KEYED_BASE || "https://gen.pollinations.ai").replace(/\/$/, "");
+      if (process.env.MUSE_IMAGE_MODEL) q.set("model", process.env.MUSE_IMAGE_MODEL);
+      url = `${base}/image/${encodeURIComponent(prompt.slice(0, 800))}?${q}`;
+      headers.authorization = `Bearer ${key}`;
+    } else {
+      const base = (process.env.POLLINATIONS_API_BASE || "https://image.pollinations.ai").replace(/\/$/, "");
+      q.set("nologo", "true");
+      q.set("model", process.env.MUSE_IMAGE_MODEL || "flux");
+      url = `${base}/prompt/${encodeURIComponent(prompt.slice(0, 800))}?${q}`;
+    }
     const retryMs = Number(process.env.POLLINATIONS_RETRY_MS) || 16000;
     let res;
     for (let attempt = 1; attempt <= 4; attempt++) {
-      res = await fetch(url);
+      res = await fetch(url, { headers });
       if (res.ok || (res.status !== 429 && res.status < 500)) break;
       if (attempt < 4) await wait(retryMs);
     }
+    if (res.status === 401 || res.status === 403) throw new Error(`Pollinations rejected the request (${res.status}). Check POLLINATIONS_API_KEY`);
     if (!res.ok) throw new Error(`Pollinations error ${res.status}. The free service may be busy; try again in a minute`);
     const type = res.headers.get("content-type") || "";
     if (!type.startsWith("image/")) throw new Error(`Pollinations returned ${type || "no content type"} instead of an image`);

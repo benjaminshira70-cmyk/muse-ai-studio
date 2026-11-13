@@ -47,7 +47,7 @@ Files go to `MUSE_WORKSPACE` (default `~/muse-workspace`). The machine running t
 
 By default both use offline `mock` placeholders.
 
-**Free option (images only):** set `MUSE_IMAGE_PROVIDER=pollinations`. No key and no cost, but it is rate limited (about one image per 15 seconds), may add a watermark, is meant for light use, and your prompts go to a public service. It is never picked by `auto`. There is no free video generation, but all video *editing* is free.
+**Free option (images only):** set `MUSE_IMAGE_PROVIDER=pollinations`. No key and no cost, but it is rate limited (about one image per 15 seconds), may add a watermark, is meant for light use, and your prompts go to a public service. It is never picked by `auto`. If you get a Pollinations key from enter.pollinations.ai, set `POLLINATIONS_API_KEY` and it uses their official keyed API instead (whether free keys remove the watermark depends on their current plans). There is no free video generation, but all video *editing* is free.
 
 **Paid setup:** OpenAI for images, Replicate for video.
 
@@ -81,7 +81,7 @@ Add your own tool with `registerTool({ name, description, input_schema, handler 
 
 ```bash
 cp .env.example .env
-npm test                # 25 tests, run offline
+npm test                # 26 tests, run offline
 node src/cli.js list    # print tool definitions
 node src/cli.js call generate_image '{"prompt":"a red fox"}'
 ```
