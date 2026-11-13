@@ -1,4 +1,5 @@
 import { writeFile } from "node:fs/promises";
+import { replicateRun, download } from "./replicate.js";
 
 const SIZES = { square: "1024x1024", landscape: "1536x1024", portrait: "1024x1536" };
 
@@ -52,5 +53,21 @@ const openai = {
   },
 };
 
-export const imageProviders = { mock, openai };
+const ASPECT = { square: "1:1", landscape: "3:2", portrait: "2:3" };
+
+/** Replicate image models. Set MUSE_IMAGE_MODEL to owner/name of the image model you want. */
+const replicate = {
+  async generate({ prompt, shape, outBase }) {
+    const url = await replicateRun({
+      model: process.env.MUSE_IMAGE_MODEL,
+      input: { prompt, aspect_ratio: ASPECT[shape] },
+    });
+    const ext = (new URL(url).pathname.match(/\.(png|jpe?g|webp)$/i)?.[1] || "png").toLowerCase();
+    const file = `${outBase}.${ext}`;
+    await writeFile(file, await download(url));
+    return { file, provider: "replicate" };
+  },
+};
+
+export const imageProviders = { mock, openai, replicate };
 export const IMAGE_SHAPES = Object.keys(SIZES);

@@ -4,7 +4,8 @@ import generateImage from "./tools/generateImage.js";
 import generateVideo from "./tools/generateVideo.js";
 import editVideo from "./tools/editVideo.js";
 import videoInfo from "./tools/videoInfo.js";
+import checkSetup from "./tools/checkSetup.js";
 
-for (const t of [buildWebsite, generateImage, generateVideo, editVideo, videoInfo]) registerTool(t);
+for (const t of [buildWebsite, generateImage, generateVideo, editVideo, videoInfo, checkSetup]) registerTool(t);
 
 export { listTools, callTool, callToolSafe, registerTool } from "./registry.js";

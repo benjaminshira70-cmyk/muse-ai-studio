@@ -1,44 +1,26 @@
 # Muse AI Studio
 
-A tool pack that gives Muse AI the power to build websites, generate images and videos, and edit videos.
-Zero dependencies. Needs Node 18+ and `ffmpeg` installed.
+A tool pack that lets an AI assistant (like Muse) build websites, generate images and videos, and edit videos.
+Zero dependencies. Needs Node 18+ and `ffmpeg`.
 
 ## Tools
 
 | Tool | What it does |
 |---|---|
-| `build_website` | Builds a responsive, light/dark-aware static site (one `index.html`) from a list of sections: hero, features, gallery, testimonials, pricing, faq, cta, text |
-| `generate_image` | Text to image (providers: `mock`, `openai`) |
-| `generate_video` | Text/image to short video (providers: `mock`, `replicate`) |
-| `edit_video` | Chain of edits in one call: trim, reframe (16:9 / 9:16 / 1:1), speed, fade, mute, add_audio, append |
+| `build_website` | Builds a responsive static site (`index.html` + `assets/`, works offline). 5 themes: modern, minimal, bold (dark), elegant (cream), playful. 14 section types: hero, features, stats, steps, logos, gallery, video, team, testimonials, pricing, faq, contact, cta, text |
+| `generate_image` | Text to image. Providers: `mock`, `openai`, `replicate` |
+| `generate_video` | Text/image to short video. Providers: `mock`, `replicate` |
+| `edit_video` | Chain of edits in one call: trim, reframe (16:9 / 9:16 / 1:1), speed, fade, mute, append, **text** (titles/captions), **subtitles** (cues or .srt), **add_audio** (music with loop, fades, start offset, ducking under speech) |
 | `video_info` | Duration, resolution, audio check |
+| `check_setup` | Diagnoses ffmpeg, fonts, providers and missing API keys (never shows key values). Run it first if something fails |
 
-All files are read and written inside `MUSE_WORKSPACE` only. Paths that try to escape it are rejected.
-
-## Plug into Muse AI
-
-```js
-import { listTools, callToolSafe } from "./src/index.js";
-
-// 1. Give the model the tool list (Anthropic format, or "openai")
-const tools = listTools("anthropic");
-
-// 2. When the model calls a tool, run it and send the result back
-const result = await callToolSafe(toolName, toolInput, { workDir: "./workspace" });
-// result = { ok: true, result: {...} } or { ok: false, error: "..." }
-```
-
-Add your own tool with `registerTool({ name, description, input_schema, handler })`.
+All files are read and written inside `MUSE_WORKSPACE` only. Paths that try to escape it are rejected, and websites only copy image/video files.
 
 ## Use it as an MCP server (Muse, Claude, any MCP client)
-
-The package ships a standard MCP server over stdio, with no dependencies:
 
 ```bash
 npx -y github:benjaminshira70-cmyk/muse-ai-studio
 ```
-
-MCP client config:
 
 ```json
 {
@@ -48,28 +30,55 @@ MCP client config:
       "args": ["-y", "github:benjaminshira70-cmyk/muse-ai-studio"],
       "env": {
         "MUSE_WORKSPACE": "/path/to/workspace",
-        "MUSE_IMAGE_PROVIDER": "openai",
-        "OPENAI_API_KEY": "sk-..."
+        "MUSE_IMAGE_PROVIDER": "replicate",
+        "MUSE_IMAGE_MODEL": "owner/image-model",
+        "MUSE_VIDEO_PROVIDER": "replicate",
+        "MUSE_VIDEO_MODEL": "owner/video-model",
+        "REPLICATE_API_TOKEN": "..."
       }
     }
   }
 }
 ```
 
-Files are written to `MUSE_WORKSPACE` (default `~/muse-workspace`). The machine running the server needs `ffmpeg` for the video tools.
+Files go to `MUSE_WORKSPACE` (default `~/muse-workspace`). The machine running the server needs `ffmpeg`.
 
-## Setup
+## Turn on real image and video generation
+
+By default both use offline `mock` placeholders. To switch:
+
+| You want | Set these |
+|---|---|
+| Real images via OpenAI | `MUSE_IMAGE_PROVIDER=openai`, `OPENAI_API_KEY` (model defaults to `gpt-image-1`, override with `MUSE_IMAGE_MODEL`) |
+| Real images via Replicate | `MUSE_IMAGE_PROVIDER=replicate`, `REPLICATE_API_TOKEN`, `MUSE_IMAGE_MODEL=owner/name` |
+| Real videos via Replicate | `MUSE_VIDEO_PROVIDER=replicate`, `REPLICATE_API_TOKEN`, `MUSE_VIDEO_MODEL=owner/name` |
+
+Keep keys out of chat history and out of git: enter them through your platform's secret/credential prompt, or in a local `.env` (already git-ignored). Then call `check_setup` to confirm nothing is missing.
+
+## Use it in code
+
+```js
+import { listTools, callToolSafe } from "./src/index.js";
+
+const tools = listTools("anthropic");            // or "openai"
+const out = await callToolSafe(name, input, { workDir: "./workspace" });
+// { ok: true, result: {...} } or { ok: false, error: "..." }
+```
+
+Add your own tool with `registerTool({ name, description, input_schema, handler })`.
+
+## Develop
 
 ```bash
-cp .env.example .env   # then fill in keys for the real providers
-npm test               # 10 tests, runs offline
-node src/cli.js list   # print tool definitions
+cp .env.example .env
+npm test                # 16 tests, run offline
+node src/cli.js list    # print tool definitions
 node src/cli.js call generate_image '{"prompt":"a red fox"}'
 ```
 
-The default `mock` providers work offline with no keys, so you can test the whole flow first.
+Text overlays need an ffmpeg with the `drawtext` filter and a font file. A font is found automatically on Linux, macOS and Termux; otherwise set `MUSE_FONT` to a `.ttf`/`.otf` path. Windows paths are not supported for text overlays yet.
 
 ## Status
 
-- Tested offline: the registry, path safety, website builder, all video editing, and the mock providers.
-- **Not yet tested against live APIs:** the `openai` image adapter and the `replicate` video adapter (they need your API keys). Try them with a real key and check the first result.
+- Tested offline: registry, MCP protocol, path safety, website builder (all themes and sections), all video edits, mock providers.
+- **Not tested against live APIs:** the `openai` and `replicate` adapters need your API keys. Generate one image and one short video with real keys and check the results.

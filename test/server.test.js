@@ -32,7 +32,7 @@ test("MCP server: initialize, list tools, call a tool, handle errors", async () 
     child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
 
     const list = await rpc("tools/list");
-    assert.equal(list.result.tools.length, 5);
+    assert.equal(list.result.tools.length, 6);
     assert.ok(list.result.tools.every((t) => t.inputSchema && t.description));
 
     const ok = await rpc("tools/call", { name: "generate_image", arguments: { prompt: "fox", filename: "fox" } });

@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { run } from "../util.js";
+import { replicateRun, download } from "./replicate.js";
 
 const ASPECTS = { "16:9": [1280, 720], "9:16": [720, 1280], "1:1": [720, 720] };
 
@@ -16,38 +17,17 @@ const mock = {
   },
 };
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 /**
  * Replicate adapter. Set MUSE_VIDEO_MODEL to "owner/name" of the video model you want.
- * Input field names differ per model, so we send the common ones (prompt, duration, aspect_ratio).
+ * Input field names differ per model, so we send the common ones (prompt, duration, aspect_ratio, image).
  */
 const replicate = {
   async generate({ prompt, aspect, seconds, outBase, imageUrl }) {
-    const token = process.env.REPLICATE_API_TOKEN;
-    const model = process.env.MUSE_VIDEO_MODEL;
-    if (!token) throw new Error("REPLICATE_API_TOKEN is not set");
-    if (!model) throw new Error("MUSE_VIDEO_MODEL is not set (use owner/name)");
-    const headers = { "content-type": "application/json", authorization: `Bearer ${token}` };
     const input = { prompt, duration: seconds, aspect_ratio: aspect };
     if (imageUrl) input.image = imageUrl;
-    let res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
-      method: "POST", headers, body: JSON.stringify({ input }),
-    });
-    let pred = await res.json();
-    if (!res.ok) throw new Error(`Replicate error ${res.status}: ${pred?.detail || "unknown"}`);
-    const deadline = Date.now() + 15 * 60 * 1000;
-    while (!["succeeded", "failed", "canceled"].includes(pred.status)) {
-      if (Date.now() > deadline) throw new Error("Video generation timed out");
-      await sleep(4000);
-      res = await fetch(pred.urls.get, { headers });
-      pred = await res.json();
-    }
-    if (pred.status !== "succeeded") throw new Error(`Video generation ${pred.status}: ${pred.error || ""}`);
-    const url = Array.isArray(pred.output) ? pred.output[0] : pred.output;
-    if (!url) throw new Error("Replicate returned no video output");
+    const url = await replicateRun({ model: process.env.MUSE_VIDEO_MODEL, input });
     const file = `${outBase}.mp4`;
-    await writeFile(file, Buffer.from(await (await fetch(url)).arrayBuffer()));
+    await writeFile(file, await download(url));
     return { file, provider: "replicate" };
   },
 };

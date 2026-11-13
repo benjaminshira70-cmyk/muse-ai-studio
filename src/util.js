@@ -20,9 +20,9 @@ export async function ensureDir(dir) {
   await mkdir(dir, { recursive: true });
 }
 
-export function run(cmd, args, { timeoutMs = 10 * 60 * 1000 } = {}) {
+export function run(cmd, args, { timeoutMs = 10 * 60 * 1000, cwd } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"], cwd });
     let out = "";
     let err = "";
     const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
